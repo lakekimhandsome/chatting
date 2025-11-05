@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta name="robots" content="index, follow" />
+    <meta charset="UTF-8" />
+    <title>2-4 알리미 · 채팅</title>
+    <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="style.css" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+  </head>
+  <body>
+    <div id="container">
+      <div id="dateNavigation">
+        <button id="prevDay" disabled>◀</button>
+        <span id="dateTitle">실시간 채팅방</span>
+        <button id="nextDay" disabled>▶</button>
+      </div>
+
+      <div id="loading">접속 중...</div>
+
+      <!-- 메시지 목록: 댓글처럼 쌓임 -->
+      <div id="timetable" aria-live="polite" role="log"></div>
+    </div>
+
+    <div class="buttons-wrap">
+      <div id="buttons">
+        <textarea
+          id="messageInput"
+          rows="3"
+          placeholder="메시지를 입력하세요 (Enter: 전송, Shift+Enter: 줄바꿈)"
+        ></textarea>
+        <button id="sendBtn">보내기</button>
+      </div>
+    </div>
+
+    <!-- Socket.IO 클라이언트 -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const $loading = document.getElementById("loading");
+      const $list = document.getElementById("timetable");
+      const $input = document.getElementById("messageInput");
+      const $send = document.getElementById("sendBtn");
+
+      let myId = null;
+      const socket = io();
+
+      socket.on("connected", (data) => {
+        myId = data.id;
+        $loading.textContent = "연결됨";
+        setTimeout(() => ($loading.style.display = "none"), 500);
+      });
+
+      socket.on("chat:msg", (msg) => {
+        addMessage(msg);
+      });
+
+      function addMessage({ id, text, ts }) {
+        // XSS 방지: textContent 사용
+        const row = document.createElement("div");
+        row.className = id === myId ? "msg mine" : "msg other";
+
+        const bubble = document.createElement("div");
+        bubble.className = "bubble";
+        bubble.textContent = text;
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        const time = new Date(ts);
+        const hh = String(time.getHours()).padStart(2, "0");
+        const mm = String(time.getMinutes()).padStart(2, "0");
+
+        if (id === myId) {
+          const me = document.createElement("span");
+          me.className = "me-badge";
+          me.textContent = "나";
+          meta.appendChild(me);
+        }
+        const t = document.createElement("span");
+        t.textContent = ` ${hh}:${mm}`;
+        meta.appendChild(t);
+
+        row.appendChild(bubble);
+        row.appendChild(meta);
+        $list.appendChild(row);
+
+        // 최근 메시지로 스크롤
+        $list.scrollTop = $list.scrollHeight;
+      }
+
+      function send() {
+        const text = $input.value.trim();
+        if (!text) return;
+        socket.emit("chat:msg", { text });
+        $input.value = "";
+        $input.focus();
+      }
+
+      $send.addEventListener("click", send);
+      $input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          send();
+        }
+      });
+    </script>
+  </body>
+</html>
