@@ -45,7 +45,9 @@
       const $send = document.getElementById("sendBtn");
 
       let myId = null;
-      const socket = io();
+      const socket = io("https://chatting-rifw.onrender.com", {
+        transports: ["websocket", "polling"],
+      });
 
       socket.on("connected", (data) => {
         myId = data.id;
