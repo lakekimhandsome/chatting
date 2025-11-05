@@ -36,8 +36,8 @@
       </div>
     </div>
 
-    <!-- Socket.IO 클라이언트 -->
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- Socket.IO 클라이언트: 백엔드(Render)에서 로드 -->
+    <script src="https://chatting-rifw.onrender.com/socket.io/socket.io.js"></script>
     <script>
       const $loading = document.getElementById("loading");
       const $list = document.getElementById("timetable");
@@ -45,22 +45,29 @@
       const $send = document.getElementById("sendBtn");
 
       let myId = null;
+
+      // 백엔드 Render로 직접 연결
       const socket = io("https://chatting-rifw.onrender.com", {
         transports: ["websocket", "polling"],
       });
 
+      // 서버가 'connected'를 emit하는 구조라면 이 핸들러 유지
       socket.on("connected", (data) => {
         myId = data.id;
         $loading.textContent = "연결됨";
         setTimeout(() => ($loading.style.display = "none"), 500);
       });
 
-      socket.on("chat:msg", (msg) => {
-        addMessage(msg);
+      // (선택) 소켓 자체 연결 성공 이벤트도 케어하면 더 안전
+      socket.on("connect", () => {
+        if (!myId) myId = socket.id;
+        $loading.textContent = "연결됨";
+        setTimeout(() => ($loading.style.display = "none"), 500);
       });
 
+      socket.on("chat:msg", (msg) => addMessage(msg));
+
       function addMessage({ id, text, ts }) {
-        // XSS 방지: textContent 사용
         const row = document.createElement("div");
         row.className = id === myId ? "msg mine" : "msg other";
 
@@ -87,8 +94,6 @@
         row.appendChild(bubble);
         row.appendChild(meta);
         $list.appendChild(row);
-
-        // 최근 메시지로 스크롤
         $list.scrollTop = $list.scrollHeight;
       }
 
